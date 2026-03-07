@@ -19,15 +19,14 @@
 
 ## What is Byeol?
 
-Byeol is a self-hosted personal AI assistant that runs on a Raspberry Pi 3 and talks to you through Telegram. It remembers everything about you, tracks your goals, keeps a journal, searches the web, downloads media, and schedules recurring tasks — all from a $35 device sitting on your desk.
+Byeol is a self-hosted personal AI assistant that runs on a Raspberry Pi 3 and talks to you through Telegram. It remembers everything about you, tracks your goals, keeps a journal, searches the web, downloads media, and schedules recurring tasks — all running on your own device.
 
-No cloud subscriptions. No data leaving your home. Just you and your AI.
+No data leaving your home. Just you and your AI.
 
 ### Why Byeol?
 
 | | Cloud AI Services | Byeol |
 |---|---|---|
-| **Cost** | $20/mo subscription | $35 one-time + ~$1/mo API |
 | **Privacy** | Your data on their servers | Your data on your desk |
 | **Availability** | Service shuts down, you lose everything | You own it forever |
 | **Always-on** | Requires browser/app open | Runs 24/7 on your Pi |
