@@ -33,11 +33,15 @@ else
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-for f in main.py config.py llm.py search.py memory.py agent.py cron.py fileops.py media.py requirements.txt; do
-    if [ -f "$SCRIPT_DIR/$f" ]; then
-        cp "$SCRIPT_DIR/$f" "$INSTALL_DIR/"
-    fi
-done
+if [ "$SCRIPT_DIR" != "$INSTALL_DIR" ]; then
+    for f in main.py config.py llm.py search.py memory.py agent.py cron.py fileops.py media.py requirements.txt; do
+        if [ -f "$SCRIPT_DIR/$f" ]; then
+            cp "$SCRIPT_DIR/$f" "$INSTALL_DIR/"
+        fi
+    done
+else
+    echo "  Already running from install directory. Skipping file copy."
+fi
 
 # --- Python venv ---
 echo "[3/5] Creating Python virtual environment..."
