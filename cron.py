@@ -20,7 +20,8 @@ def save_jobs(jobs: list[dict]):
 
 def add_job(name: str, cron_expr: str, action: str, chat_id: int) -> dict:
     """Add a cron job. cron_expr format: 'minute hour day month day_of_week'"""
-    parts = cron_expr.strip().split()
+    cron_expr = cron_expr.strip().strip("'\"")
+    parts = cron_expr.split()
     if len(parts) != 5:
         raise ValueError("Cron format: 'minute hour day month day_of_week'")
 
