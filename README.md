@@ -179,7 +179,8 @@ MEDIA_THRESHOLD=0.7           # Auto-cleanup threshold (0.0-1.0)
 | `/goals` | Show active goals |
 | `/journal` | Show recent journal entries |
 | `/profile` | Show what Byeol knows about you |
-| `/cron add <name> <cron> <action>` | Schedule a recurring task |
+| `/cron add <name> <cron> <action>` | Schedule a recurring task (processed by AI agent) |
+| `/cron add <name> <cron> say:<message>` | Schedule a direct message (sent as-is, no AI) |
 | `/cron rm <name>` | Remove a scheduled task |
 | `/cron list` | List all scheduled tasks |
 | `/mem list` | Show stored memories |
