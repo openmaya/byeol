@@ -43,7 +43,9 @@ async def cron_execute(context: ContextTypes.DEFAULT_TYPE):
     job_data = context.job.data
     logger.info(f"Cron executing: {job_data['name']}")
 
-    if job_data["action"].startswith("search:"):
+    if job_data["action"].startswith("say:"):
+        text = job_data["action"][4:].strip()
+    elif job_data["action"].startswith("search:"):
         query = job_data["action"][7:]
         results = await asyncio.to_thread(web_search, query)
         text = f"[Scheduled: {job_data['name']}]\n\n"
