@@ -19,16 +19,16 @@
 
 ## What is Byeol?
 
-Byeol is a self-hosted personal AI assistant that runs on a Raspberry Pi 3 and talks to you through Telegram. It remembers everything about you, tracks your goals, keeps a journal, searches the web, downloads media, and schedules recurring tasks — all running on your own device.
+Byeol is a personal AI assistant that runs on a Raspberry Pi 3 and talks to you through Telegram. It remembers everything about you, tracks your goals, keeps a journal, searches the web, downloads media, and schedules recurring tasks.
 
-No data leaving your home. Just you and your AI.
+Your personal data (profile, goals, journal, memories, files) stays on your Pi. Conversation prompts are sent to cloud LLM APIs (Gemini/Claude) for inference.
 
 ### Why Byeol?
 
 | | Cloud AI Services | Byeol |
 |---|---|---|
-| **Privacy** | Your data on their servers | Your data on your desk |
-| **Availability** | Service shuts down, you lose everything | You own it forever |
+| **Privacy** | All your data on their servers | Personal data on your device; only prompts sent to LLM API |
+| **Availability** | Service shuts down, you lose everything | You own your data forever |
 | **Always-on** | Requires browser/app open | Runs 24/7 on your Pi |
 
 ## Features
@@ -160,6 +160,7 @@ DEFAULT_LLM=gemini            # gemini or claude
 FILE_ROOT=~/files             # Sandboxed file directory
 MEDIA_DIRS=~/media            # Media download directory (comma-separated)
 MEDIA_THRESHOLD=0.7           # Auto-cleanup threshold (0.0-1.0)
+TZ=Asia/Seoul                 # Timezone for cron scheduling (default: UTC)
 ```
 
 ### LLM Backends

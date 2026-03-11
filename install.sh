@@ -65,6 +65,8 @@ if [ ! -f "$INSTALL_DIR/.env" ]; then
     DEFAULT_LLM=${DEFAULT_LLM:-gemini}
     read -p "Media directory for downloads (default: ~/media): " MEDIA_DIR
     MEDIA_DIR=${MEDIA_DIR:-~/media}
+    read -p "Timezone (default: UTC, e.g. Asia/Seoul): " USER_TZ
+    USER_TZ=${USER_TZ:-UTC}
 
     cat > "$INSTALL_DIR/.env" <<EOF
 TELEGRAM_BOT_TOKEN=$TG_TOKEN
@@ -73,6 +75,7 @@ ANTHROPIC_API_KEY=$ANTHROPIC_KEY
 DEFAULT_LLM=$DEFAULT_LLM
 ALLOWED_USER_IDS=$USER_IDS
 MEDIA_DIRS=$MEDIA_DIR
+TZ=$USER_TZ
 MEDIA_THRESHOLD=0.7
 EOF
     chmod 600 "$INSTALL_DIR/.env"

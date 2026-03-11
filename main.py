@@ -3,7 +3,8 @@ import logging
 from datetime import time as dtime
 from zoneinfo import ZoneInfo
 
-KST = ZoneInfo("Asia/Seoul")
+import os
+LOCAL_TZ = ZoneInfo(os.environ.get("TZ", "UTC"))
 from telegram import Update, Bot
 from telegram.ext import (
     Application,
@@ -98,7 +99,7 @@ def schedule_job_to_queue(job_queue, job: dict):
             # Specific time daily
             h = int(hour)
             m = int(minute)
-            run_time = dtime(hour=h, minute=m, tzinfo=KST)
+            run_time = dtime(hour=h, minute=m, tzinfo=LOCAL_TZ)
 
             if dow == "*":
                 # Every day
