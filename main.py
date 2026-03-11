@@ -1,10 +1,13 @@
 import asyncio
 import logging
+import os
 from datetime import time as dtime
 from zoneinfo import ZoneInfo
 
-import os
+from config import TELEGRAM_BOT_TOKEN, ALLOWED_USER_IDS, DEFAULT_LLM
+
 LOCAL_TZ = ZoneInfo(os.environ.get("TZ", "UTC"))
+
 from telegram import Update, Bot
 from telegram.ext import (
     Application,
@@ -13,7 +16,6 @@ from telegram.ext import (
     filters,
     ContextTypes,
 )
-from config import TELEGRAM_BOT_TOKEN, ALLOWED_USER_IDS, DEFAULT_LLM
 from llm import ask
 from search import web_search, fetch_page
 from memory import memory
