@@ -23,7 +23,6 @@ MEDIA_THRESHOLD = float(os.getenv("MEDIA_THRESHOLD", "0.7"))
 
 # --- Ollama (remote) ---
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3")
 
 # --- Auto-detect browser/driver paths (RPi3 / Debian) ---
 

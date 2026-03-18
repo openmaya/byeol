@@ -1,7 +1,7 @@
 import aiohttp
 import google.generativeai as genai
 import anthropic
-from config import GOOGLE_API_KEY, ANTHROPIC_API_KEY, OLLAMA_BASE_URL, OLLAMA_MODEL
+from config import GOOGLE_API_KEY, ANTHROPIC_API_KEY, OLLAMA_BASE_URL
 
 # --- Gemini ---
 genai.configure(api_key=GOOGLE_API_KEY)
@@ -37,7 +37,7 @@ def set_ollama_model(chat_id: int, model: str):
 
 
 def get_ollama_model(chat_id: int) -> str:
-    return _ollama_model_override.get(chat_id, OLLAMA_MODEL)
+    return _ollama_model_override.get(chat_id, "")
 
 
 async def ask(prompt: str, context: str = "", backend: str = "", history: list[dict] = None, chat_id: int = 0) -> str:
@@ -86,6 +86,9 @@ async def _ask_claude(prompt: str, context: str, history: list[dict] = None) -> 
 
 
 async def _ask_ollama(prompt: str, context: str, history: list[dict] = None, chat_id: int = 0) -> str:
+    model = get_ollama_model(chat_id)
+    if not model:
+        return "[Ollama] 모델이 선택되지 않았습니다. /llm ollama 로 모델을 선택해주세요."
     messages = []
     system_msg = context or "You are Byeol, a helpful AI assistant. Answer concisely."
     messages.append({"role": "system", "content": system_msg})
@@ -98,7 +101,7 @@ async def _ask_ollama(prompt: str, context: str, history: list[dict] = None, cha
         async with aiohttp.ClientSession() as session:
             async with session.post(
                 f"{OLLAMA_BASE_URL}/api/chat",
-                json={"model": get_ollama_model(chat_id), "messages": messages, "stream": False},
+                json={"model": model, "messages": messages, "stream": False},
                 timeout=aiohttp.ClientTimeout(total=120),
             ) as resp:
                 if resp.status != 200:
