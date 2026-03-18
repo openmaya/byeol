@@ -163,7 +163,7 @@ async def run_agent(user_msg: str, chat_id: int, backend: str = "", cron_on_add=
 
     for step in range(MAX_STEPS):
         prompt = "\n\n".join(observations)
-        response = await ask(prompt, context=context, backend=backend, history=history)
+        response = await ask(prompt, context=context, backend=backend, history=history, chat_id=chat_id)
         logger.info(f"Agent step {step + 1}: {response[:200]}")
 
         tool_call = _parse_tool_call(response)
@@ -334,6 +334,7 @@ async def run_agent(user_msg: str, chat_id: int, backend: str = "", cron_on_add=
         context="\n\n".join(observations),
         backend=backend,
         history=history,
+        chat_id=chat_id,
     )
 
 

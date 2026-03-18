@@ -8,15 +8,16 @@ from config import TELEGRAM_BOT_TOKEN, ALLOWED_USER_IDS, DEFAULT_LLM
 
 LOCAL_TZ = ZoneInfo(os.environ.get("TZ", "UTC"))
 
-from telegram import Update, Bot
+from telegram import Update, Bot, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
+    CallbackQueryHandler,
     CommandHandler,
     MessageHandler,
     filters,
     ContextTypes,
 )
-from llm import ask
+from llm import ask, list_ollama_models, set_ollama_model, get_ollama_model
 from search import web_search, fetch_page
 from memory import memory
 from agent import run_agent
@@ -191,7 +192,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/cron rm <name> | /cron list\n"
         "/mem list | /mem set <k> <v> | /mem del <k>\n"
         "/clear - Clear chat history\n"
-        "/llm <gemini|claude> - Switch LLM\n"
+        "/llm <gemini|claude|ollama> - Switch LLM\n"
     )
 
 
@@ -227,6 +228,7 @@ async def cmd_read(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"Summarize the following page content in Korean:\n\n{content}",
         backend=backend,
         history=history,
+        chat_id=chat_id,
     )
     await update.message.reply_text(summary)
 
@@ -362,11 +364,82 @@ async def cmd_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
 @authorized
 async def cmd_llm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = context.args or []
-    if not args or args[0] not in ("gemini", "claude"):
-        await update.message.reply_text("Usage: /llm <gemini|claude>")
+
+    # No args → show picker with all backends
+    if not args:
+        buttons = [
+            [InlineKeyboardButton("Gemini", callback_data="llm:gemini"),
+             InlineKeyboardButton("Claude", callback_data="llm:claude"),
+             InlineKeyboardButton("Ollama →", callback_data="llm:ollama_pick")],
+        ]
+        current = _get_backend(context)
+        extra = ""
+        if current == "ollama":
+            model = get_ollama_model(update.effective_chat.id)
+            extra = f" ({model})"
+        await update.message.reply_text(
+            f"Current: {current}{extra}\nSelect LLM:",
+            reply_markup=InlineKeyboardMarkup(buttons),
+        )
         return
-    context.user_data["backend"] = args[0]
-    await update.message.reply_text(f"LLM switched to: {args[0]}")
+
+    backend = args[0]
+    if backend not in ("gemini", "claude", "ollama"):
+        await update.message.reply_text("Usage: /llm [gemini|claude|ollama]")
+        return
+    if backend == "ollama":
+        await _show_ollama_models(update.message, update.effective_chat.id)
+        return
+    context.user_data["backend"] = backend
+    await update.message.reply_text(f"LLM switched to: {backend}")
+
+
+async def _show_ollama_models(message, chat_id: int):
+    """Fetch Ollama models and show as inline buttons."""
+    models = await list_ollama_models()
+    if not models:
+        await message.reply_text("Ollama 서버에 연결할 수 없거나 모델이 없습니다.")
+        return
+    current = get_ollama_model(chat_id)
+    buttons = []
+    row = []
+    for m in models:
+        label = f"✓ {m}" if m == current else m
+        row.append(InlineKeyboardButton(label, callback_data=f"ollama_model:{m}"))
+        if len(row) == 2:
+            buttons.append(row)
+            row = []
+    if row:
+        buttons.append(row)
+    await message.reply_text(
+        "Ollama 모델 선택:",
+        reply_markup=InlineKeyboardMarkup(buttons),
+    )
+
+
+async def handle_llm_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    # Auth check
+    if ALLOWED_USER_IDS and query.from_user.id not in ALLOWED_USER_IDS:
+        await query.answer("Unauthorized.")
+        return
+
+    data = query.data
+    await query.answer()
+
+    if data == "llm:gemini":
+        context.user_data["backend"] = "gemini"
+        await query.edit_message_text("LLM switched to: gemini")
+    elif data == "llm:claude":
+        context.user_data["backend"] = "claude"
+        await query.edit_message_text("LLM switched to: claude")
+    elif data == "llm:ollama_pick":
+        await _show_ollama_models(query.message, query.message.chat_id)
+    elif data.startswith("ollama_model:"):
+        model = data.split(":", 1)[1]
+        set_ollama_model(query.message.chat_id, model)
+        context.user_data["backend"] = "ollama"
+        await query.edit_message_text(f"LLM switched to: ollama ({model})")
 
 
 @authorized
@@ -417,6 +490,7 @@ def main():
     app.add_handler(CommandHandler("profile", cmd_profile))
     app.add_handler(CommandHandler("clear", cmd_clear))
     app.add_handler(CommandHandler("llm", cmd_llm))
+    app.add_handler(CallbackQueryHandler(handle_llm_callback, pattern=r"^(llm:|ollama_model:)"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     # Schedule saved cron jobs
