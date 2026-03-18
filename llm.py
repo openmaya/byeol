@@ -1,4 +1,4 @@
-import httpx
+import aiohttp
 import google.generativeai as genai
 import anthropic
 from config import GOOGLE_API_KEY, ANTHROPIC_API_KEY, OLLAMA_BASE_URL
@@ -19,12 +19,15 @@ _ollama_model_override: dict[int, str] = {}
 async def list_ollama_models() -> list[str]:
     """Fetch available model names from the Ollama server."""
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags")
-            if resp.status_code != 200:
-                return []
-            data = resp.json()
-            return [m["name"] for m in data.get("models", [])]
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                f"{OLLAMA_BASE_URL}/api/tags",
+                timeout=aiohttp.ClientTimeout(total=10),
+            ) as resp:
+                if resp.status != 200:
+                    return []
+                data = await resp.json()
+                return [m["name"] for m in data.get("models", [])]
     except Exception:
         return []
 
@@ -95,14 +98,16 @@ async def _ask_ollama(prompt: str, context: str, history: list[dict] = None, cha
             messages.append({"role": role, "content": msg["content"]})
     messages.append({"role": "user", "content": prompt})
     try:
-        async with httpx.AsyncClient(timeout=120) as client:
-            resp = await client.post(
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
                 f"{OLLAMA_BASE_URL}/api/chat",
                 json={"model": model, "messages": messages, "stream": False},
-            )
-            if resp.status_code != 200:
-                return f"[Ollama Error] HTTP {resp.status_code}: {resp.text}"
-            data = resp.json()
-            return data["message"]["content"]
+                timeout=aiohttp.ClientTimeout(total=120),
+            ) as resp:
+                if resp.status != 200:
+                    text = await resp.text()
+                    return f"[Ollama Error] HTTP {resp.status}: {text}"
+                data = await resp.json()
+                return data["message"]["content"]
     except Exception as e:
         return f"[Ollama Error] {e}"
