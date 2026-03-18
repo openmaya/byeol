@@ -176,7 +176,7 @@ async def run_agent(user_msg: str, chat_id: int, backend: str = "", ollama_model
                 "You MUST respond with a JSON object like: "
                 '{"tool": "done", "answer": "your answer here"}'
             )
-            response = await ask(retry_prompt, context=context, backend=backend, history=history)
+            response = await ask(retry_prompt, context=context, backend=backend, history=history, ollama_model=ollama_model)
             logger.info(f"Agent retry: {response[:200]}")
             tool_call = _parse_tool_call(response)
             if not tool_call:
