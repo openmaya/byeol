@@ -460,10 +460,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         remove_job_from_queue(jq, name)
 
     ollama_model = context.user_data.get("ollama_model", "")
-    response = await run_agent(
-        user_msg, chat_id, backend=backend, ollama_model=ollama_model,
-        cron_on_add=_cron_add, cron_on_remove=_cron_remove,
-    )
+    try:
+        response = await run_agent(
+            user_msg, chat_id, backend=backend, ollama_model=ollama_model,
+            cron_on_add=_cron_add, cron_on_remove=_cron_remove,
+        )
+    except Exception as e:
+        logger.error(f"Agent error: {e}")
+        response = f"오류가 발생했습니다: {e}"
 
     memory.add_message(chat_id, "assistant", response)
     for i in range(0, len(response), 4000):
