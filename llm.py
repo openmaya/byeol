@@ -12,9 +12,6 @@ _claude = anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY) if ANTHROPIC_API_K
 
 DEFAULT_BACKEND = "gemini"
 
-# Track per-user Ollama model override (chat_id -> model_name)
-_ollama_model_override: dict[int, str] = {}
-
 
 async def list_ollama_models() -> list[str]:
     """Fetch available model names from the Ollama server."""
@@ -32,21 +29,13 @@ async def list_ollama_models() -> list[str]:
         return []
 
 
-def set_ollama_model(chat_id: int, model: str):
-    _ollama_model_override[chat_id] = model
-
-
-def get_ollama_model(chat_id: int) -> str:
-    return _ollama_model_override.get(chat_id, "")
-
-
-async def ask(prompt: str, context: str = "", backend: str = "", history: list[dict] = None, chat_id: int = 0) -> str:
+async def ask(prompt: str, context: str = "", backend: str = "", history: list[dict] = None, ollama_model: str = "") -> str:
     backend = backend or DEFAULT_BACKEND
 
     if backend == "claude" and _claude:
         return await _ask_claude(prompt, context, history)
     if backend == "ollama":
-        return await _ask_ollama(prompt, context, history, chat_id=chat_id)
+        return await _ask_ollama(prompt, context, history, model=ollama_model)
     return await _ask_gemini(prompt, context, history)
 
 
@@ -85,8 +74,7 @@ async def _ask_claude(prompt: str, context: str, history: list[dict] = None) -> 
         return f"[Claude Error] {e}"
 
 
-async def _ask_ollama(prompt: str, context: str, history: list[dict] = None, chat_id: int = 0) -> str:
-    model = get_ollama_model(chat_id)
+async def _ask_ollama(prompt: str, context: str, history: list[dict] = None, model: str = "") -> str:
     if not model:
         return "[Ollama] 모델이 선택되지 않았습니다. /llm ollama 로 모델을 선택해주세요."
     messages = []

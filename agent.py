@@ -151,7 +151,7 @@ User: "메모 저장해줘: 내일 회의 10시"
 Your response: {"tool": "file_write", "path": "memos/meeting.txt", "content": "내일 회의 10시"}"""
 
 
-async def run_agent(user_msg: str, chat_id: int, backend: str = "", cron_on_add=None, cron_on_remove=None) -> str:
+async def run_agent(user_msg: str, chat_id: int, backend: str = "", ollama_model: str = "", cron_on_add=None, cron_on_remove=None) -> str:
     history = memory.get_history(chat_id)
     full_context = memory.get_full_context()
 
@@ -163,7 +163,7 @@ async def run_agent(user_msg: str, chat_id: int, backend: str = "", cron_on_add=
 
     for step in range(MAX_STEPS):
         prompt = "\n\n".join(observations)
-        response = await ask(prompt, context=context, backend=backend, history=history, chat_id=chat_id)
+        response = await ask(prompt, context=context, backend=backend, history=history, ollama_model=ollama_model)
         logger.info(f"Agent step {step + 1}: {response[:200]}")
 
         tool_call = _parse_tool_call(response)
@@ -334,7 +334,7 @@ async def run_agent(user_msg: str, chat_id: int, backend: str = "", cron_on_add=
         context="\n\n".join(observations),
         backend=backend,
         history=history,
-        chat_id=chat_id,
+        ollama_model=ollama_model,
     )
 
 

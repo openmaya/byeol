@@ -14,10 +14,11 @@ from telegram.ext import (
     CallbackQueryHandler,
     CommandHandler,
     MessageHandler,
+    PicklePersistence,
     filters,
     ContextTypes,
 )
-from llm import ask, list_ollama_models, set_ollama_model, get_ollama_model
+from llm import ask, list_ollama_models
 from search import web_search, fetch_page
 from memory import memory
 from agent import run_agent
@@ -228,7 +229,7 @@ async def cmd_read(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"Summarize the following page content in Korean:\n\n{content}",
         backend=backend,
         history=history,
-        chat_id=chat_id,
+        ollama_model=context.user_data.get("ollama_model", ""),
     )
     await update.message.reply_text(summary)
 
@@ -375,8 +376,7 @@ async def cmd_llm(update: Update, context: ContextTypes.DEFAULT_TYPE):
         current = _get_backend(context)
         extra = ""
         if current == "ollama":
-            model = get_ollama_model(update.effective_chat.id)
-            extra = f" ({model})"
+            extra = f" ({context.user_data.get('ollama_model', 'not set')})"
         await update.message.reply_text(
             f"Current: {current}{extra}\nSelect LLM:",
             reply_markup=InlineKeyboardMarkup(buttons),
@@ -388,19 +388,19 @@ async def cmd_llm(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Usage: /llm [gemini|claude|ollama]")
         return
     if backend == "ollama":
-        await _show_ollama_models(update.message, update.effective_chat.id)
+        await _show_ollama_models(update.message, context.user_data.get("ollama_model", ""))
         return
     context.user_data["backend"] = backend
     await update.message.reply_text(f"LLM switched to: {backend}")
 
 
-async def _show_ollama_models(message, chat_id: int):
+async def _show_ollama_models(message, current_model: str = ""):
     """Fetch Ollama models and show as inline buttons."""
     models = await list_ollama_models()
     if not models:
         await message.reply_text("Ollama 서버에 연결할 수 없거나 모델이 없습니다.")
         return
-    current = get_ollama_model(chat_id)
+    current = current_model
     buttons = []
     row = []
     for m in models:
@@ -434,10 +434,10 @@ async def handle_llm_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
         context.user_data["backend"] = "claude"
         await query.edit_message_text("LLM switched to: claude")
     elif data == "llm:ollama_pick":
-        await _show_ollama_models(query.message, query.message.chat_id)
+        await _show_ollama_models(query.message, context.user_data.get("ollama_model", ""))
     elif data.startswith("ollama_model:"):
         model = data.split(":", 1)[1]
-        set_ollama_model(query.message.chat_id, model)
+        context.user_data["ollama_model"] = model
         context.user_data["backend"] = "ollama"
         await query.edit_message_text(f"LLM switched to: ollama ({model})")
 
@@ -459,8 +459,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     def _cron_remove(name: str):
         remove_job_from_queue(jq, name)
 
+    ollama_model = context.user_data.get("ollama_model", "")
     response = await run_agent(
-        user_msg, chat_id, backend=backend,
+        user_msg, chat_id, backend=backend, ollama_model=ollama_model,
         cron_on_add=_cron_add, cron_on_remove=_cron_remove,
     )
 
@@ -477,7 +478,8 @@ def _get_backend(context: ContextTypes.DEFAULT_TYPE) -> str:
 
 def main():
     global _app
-    app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+    persistence = PicklePersistence(filepath="bot_data.pickle")
+    app = Application.builder().token(TELEGRAM_BOT_TOKEN).persistence(persistence).build()
     _app = app
 
     app.add_handler(CommandHandler("start", cmd_start))
