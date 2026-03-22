@@ -164,11 +164,12 @@ async def run_agent(user_msg: str, chat_id: int, backend: str = "", ollama_model
     for step in range(MAX_STEPS):
         prompt = "\n\n".join(observations)
         response = await ask(prompt, context=context, backend=backend, history=history, ollama_model=ollama_model)
-        logger.info(f"Agent step {step + 1}: {response[:200]}")
-
-        # LLM error — return immediately instead of retrying
+        # LLM error — log full message and return immediately
         if response.startswith("[") and "Error]" in response:
+            logger.error(f"Agent step {step + 1} LLM error: {response}")
             return response
+
+        logger.info(f"Agent step {step + 1}: {response[:200]}")
 
         tool_call = _parse_tool_call(response)
 
