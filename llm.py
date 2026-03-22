@@ -90,7 +90,7 @@ async def _ask_ollama(prompt: str, context: str, history: list[dict] = None, mod
             async with session.post(
                 f"{OLLAMA_BASE_URL}/api/chat",
                 json={"model": model, "messages": messages, "stream": False},
-                timeout=aiohttp.ClientTimeout(total=120),
+                timeout=aiohttp.ClientTimeout(total=300),
             ) as resp:
                 if resp.status != 200:
                     text = await resp.text()
