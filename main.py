@@ -265,24 +265,36 @@ async def cmd_rss(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def _format_rss(url: str, backend: str, ollama_model: str, n: int = 3) -> str:
-    """Fetch RSS feed, summarize each entry with LLM, return formatted text."""
+    """Fetch RSS feed, summarize each entry with LLM in parallel."""
     entries = await asyncio.to_thread(fetch_rss, url, n)
     if not entries:
         return "피드를 가져올 수 없습니다. URL을 확인해주세요."
 
+    async def _summarize(entry: dict) -> str:
+        try:
+            summary = await ask(
+                f"Summarize in one short Korean sentence (under 80 chars). "
+                f"Add one relevant emoji at the end.\n\n"
+                f"Title: {entry['title']}\n"
+                f"Content: {entry['summary']}",
+                backend=backend,
+                ollama_model=ollama_model,
+            )
+            summary = summary.strip().strip('"').strip()
+            if summary.startswith("[") and "Error]" in summary:
+                return ""
+            return summary
+        except Exception:
+            return ""
+
+    summaries = await asyncio.gather(*[_summarize(e) for e in entries])
+
     lines = []
-    for i, entry in enumerate(entries, 1):
-        summary = await ask(
-            f"Summarize this article in one short Korean sentence (under 80 chars). "
-            f"Add one relevant emoji at the end.\n\n"
-            f"Title: {entry['title']}\n"
-            f"Content: {entry['summary']}",
-            backend=backend,
-            ollama_model=ollama_model,
-        )
-        # Clean up LLM response — remove quotes, extra whitespace
-        summary = summary.strip().strip('"').strip()
-        lines.append(f"{i}. {entry['title']} – {summary} 👉 {entry['link']}")
+    for i, (entry, summary) in enumerate(zip(entries, summaries), 1):
+        if summary:
+            lines.append(f"{i}. {entry['title']} – {summary} 👉 {entry['link']}")
+        else:
+            lines.append(f"{i}. {entry['title']} 👉 {entry['link']}")
 
     return "\n\n".join(lines)
 
