@@ -61,8 +61,15 @@ async def cron_execute(context: ContextTypes.DEFAULT_TYPE):
         text = job_data["action"][4:].strip()
     elif job_data["action"].startswith("rss:"):
         rss_url = job_data["action"][4:].strip()
-        rss_text = await _format_rss(rss_url, backend, ollama_model)
-        text = f"[Scheduled: {job_data['name']}]\n\n{rss_text}"
+        entries = await asyncio.to_thread(fetch_rss, rss_url, 3)
+        if not entries:
+            text = f"[Scheduled: {job_data['name']}]\n\n피드를 가져올 수 없습니다."
+        else:
+            await context.bot.send_message(chat_id=chat_id, text=f"[Scheduled: {job_data['name']}]")
+            for i, entry in enumerate(entries, 1):
+                line = await _summarize_entry(i, entry, backend, ollama_model)
+                await context.bot.send_message(chat_id=chat_id, text=line, disable_web_page_preview=True)
+            return
     elif job_data["action"].startswith("search:"):
         query = job_data["action"][7:]
         results = await asyncio.to_thread(web_search, query)
@@ -287,16 +294,6 @@ async def _summarize_entry(idx: int, entry: dict, backend: str, ollama_model: st
     except Exception:
         return f"{idx}. {entry['title']} 👉 {entry['link']}"
 
-
-async def _format_rss(url: str, backend: str, ollama_model: str, n: int = 3) -> str:
-    """Fetch RSS and format all entries (used by cron)."""
-    entries = await asyncio.to_thread(fetch_rss, url, n)
-    if not entries:
-        return "피드를 가져올 수 없습니다. URL을 확인해주세요."
-    lines = []
-    for i, entry in enumerate(entries, 1):
-        lines.append(await _summarize_entry(i, entry, backend, ollama_model))
-    return "\n\n".join(lines)
 
 
 @authorized
