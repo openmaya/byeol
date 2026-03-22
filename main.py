@@ -48,12 +48,11 @@ async def cron_execute(context: ContextTypes.DEFAULT_TYPE):
     job_data = context.job.data
     chat_id = job_data["chat_id"]
     user_id = job_data.get("user_id", chat_id)
-    logger.info(f"Cron executing: {job_data['name']}")
-
     # Read user's LLM preference from persistence
     user_data = context.application.user_data.get(user_id, {})
     backend = user_data.get("backend", DEFAULT_LLM)
     ollama_model = user_data.get("ollama_model", "")
+    logger.info(f"Cron executing: {job_data['name']} | backend={backend} model={ollama_model} user_id={user_id}")
 
     if job_data["action"].startswith("say:"):
         text = job_data["action"][4:].strip()
