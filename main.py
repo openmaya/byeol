@@ -46,7 +46,14 @@ def authorized(func):
 
 async def cron_execute(context: ContextTypes.DEFAULT_TYPE):
     job_data = context.job.data
+    chat_id = job_data["chat_id"]
+    user_id = job_data.get("user_id", chat_id)
     logger.info(f"Cron executing: {job_data['name']}")
+
+    # Read user's LLM preference from persistence
+    user_data = context.application.user_data.get(user_id, {})
+    backend = user_data.get("backend", DEFAULT_LLM)
+    ollama_model = user_data.get("ollama_model", "")
 
     if job_data["action"].startswith("say:"):
         text = job_data["action"][4:].strip()
@@ -58,10 +65,13 @@ async def cron_execute(context: ContextTypes.DEFAULT_TYPE):
             f"- {r['title']}\n  {r['url']}" for r in results
         )
     else:
-        response = await run_agent(job_data["action"], job_data["chat_id"])
+        response = await run_agent(
+            job_data["action"], chat_id,
+            backend=backend, ollama_model=ollama_model,
+        )
         text = f"[Scheduled: {job_data['name']}]\n\n{response}"
 
-    await context.bot.send_message(chat_id=job_data["chat_id"], text=text)
+    await context.bot.send_message(chat_id=chat_id, text=text)
 
 
 def schedule_job_to_queue(job_queue, job: dict):
