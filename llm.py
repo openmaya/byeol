@@ -98,4 +98,6 @@ async def _ask_ollama(prompt: str, context: str, history: list[dict] = None, mod
                 data = await resp.json()
                 return data["message"]["content"]
     except Exception as e:
-        return f"[Ollama Error] {e}"
+        import logging
+        logging.getLogger(__name__).error(f"Ollama request failed: {type(e).__name__}: {e!r} | model={model} url={OLLAMA_BASE_URL}")
+        return f"[Ollama Error] {type(e).__name__}: {e}"
