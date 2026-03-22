@@ -47,11 +47,17 @@ def authorized(func):
 async def cron_execute(context: ContextTypes.DEFAULT_TYPE):
     job_data = context.job.data
     chat_id = job_data["chat_id"]
-    backend = job_data.get("backend", "") or DEFAULT_LLM
-    ollama_model = job_data.get("ollama_model", "")
-    logger.info(f"Cron executing: {job_data['name']} | backend={backend} model={ollama_model}")
 
-    if job_data["action"].startswith("say:"):
+    # Read user's LLM preference from persistence
+    user_data = context.application.user_data.get(chat_id, {})
+    backend = user_data.get("backend", "")
+    ollama_model = user_data.get("ollama_model", "")
+    logger.info(f"Cron executing: {job_data['name']} | backend={backend} model={ollama_model} chat_id={chat_id}")
+
+    if not backend:
+        logger.warning(f"Cron {job_data['name']}: no LLM backend set for chat_id={chat_id}")
+        text = f"[Scheduled: {job_data['name']}]\n\nLLM이 설정되지 않았습니다. /llm 으로 설정해주세요."
+    elif job_data["action"].startswith("say:"):
         text = job_data["action"][4:].strip()
     elif job_data["action"].startswith("search:"):
         query = job_data["action"][7:]
@@ -276,9 +282,7 @@ async def cmd_cron(update: Update, context: ContextTypes.DEFAULT_TYPE):
         cron_expr = " ".join(args[2:7])
         action = " ".join(args[7:])
         try:
-            job = add_job(name, cron_expr, action, update.effective_chat.id,
-                         backend=_get_backend(context),
-                         ollama_model=context.user_data.get("ollama_model", ""))
+            job = add_job(name, cron_expr, action, update.effective_chat.id)
             add_job_to_queue(context.application.job_queue, job)
             await update.message.reply_text(
                 f"Added: {job['name']}\nCron: {job['cron']}\nAction: {job['action']}"

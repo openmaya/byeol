@@ -21,13 +21,13 @@
 
 Byeol is a personal AI assistant that runs on a Raspberry Pi 3 and talks to you through Telegram. It remembers everything about you, tracks your goals, keeps a journal, searches the web, downloads media, and schedules recurring tasks.
 
-Your personal data (profile, goals, journal, memories, files) stays on your Pi. Conversation prompts are sent to cloud LLM APIs (Gemini/Claude) for inference.
+Your personal data (profile, goals, journal, memories, files) stays on your Pi. Conversation prompts are sent to LLM APIs (Gemini/Claude/Ollama) for inference — or run fully local with Ollama.
 
 ### Why Byeol?
 
 | | Cloud AI Services | Byeol |
 |---|---|---|
-| **Privacy** | All your data on their servers | Personal data on your device; only prompts sent to LLM API |
+| **Privacy** | All your data on their servers | Personal data on your device; use Ollama for fully local inference |
 | **Availability** | Service shuts down, you lose everything | You own your data forever |
 | **Always-on** | Requires browser/app open | Runs 24/7 on your Pi |
 
@@ -55,7 +55,7 @@ Your personal data (profile, goals, journal, memories, files) stays on your Pi. 
 **Infrastructure**
 - Runs on Raspberry Pi 3 (1GB RAM, ARM)
 - Telegram bot interface — use the app you already have
-- Multi-LLM: Google Gemini (primary) + Anthropic Claude (secondary)
+- Multi-LLM: Google Gemini + Anthropic Claude + Ollama (local/remote)
 - systemd service with auto-restart
 - One-script installation
 
@@ -67,6 +67,7 @@ Your personal data (profile, goals, journal, memories, files) stays on your Pi. 
 - [Telegram Bot Token](https://core.telegram.org/bots#how-do-i-create-a-bot) (free, from @BotFather)
 - [Google API Key](https://aistudio.google.com/apikey) (free tier for Gemini)
 - Anthropic API Key (optional, for Claude backend)
+- Ollama server (optional, for local/remote open-source models)
 
 ### Install
 
@@ -110,7 +111,7 @@ Telegram ──► main.py (Bot + JobQueue)
                 │
                 ├──► agent.py (ReAct Loop)
                 │       │
-                │       ├──► llm.py (Gemini / Claude)
+                │       ├──► llm.py (Gemini / Claude / Ollama)
                 │       ├──► search.py (DuckDuckGo + Page Reader)
                 │       ├──► memory.py (Profile, Goals, Journal)
                 │       ├──► fileops.py (Sandboxed File I/O)
@@ -156,7 +157,8 @@ ALLOWED_USER_IDS=123456789    # Comma-separated Telegram user IDs
 
 # Optional
 ANTHROPIC_API_KEY=your-anthropic-api-key
-DEFAULT_LLM=gemini            # gemini or claude
+DEFAULT_LLM=gemini            # gemini, claude, or ollama
+OLLAMA_BASE_URL=http://your-server:11434  # Ollama server URL
 FILE_ROOT=~/files             # Sandboxed file directory
 MEDIA_DIRS=~/media            # Media download directory (comma-separated)
 MEDIA_THRESHOLD=0.7           # Auto-cleanup threshold (0.0-1.0)
@@ -169,6 +171,9 @@ TZ=Asia/Seoul                 # Timezone for cron scheduling (default: UTC)
 |---------|-------|----------|
 | Gemini | gemini-2.5-flash | Default. Fast, free tier available |
 | Claude | claude-haiku-4-5 | Optional. Switch with `/llm claude` |
+| Ollama | Any model on server | Local/remote open-source models. Switch with `/llm ollama` |
+
+Use `/llm` (no arguments) to see an interactive picker. When selecting Ollama, available models are fetched from the server and shown as buttons.
 
 ## Commands
 
@@ -187,7 +192,8 @@ TZ=Asia/Seoul                 # Timezone for cron scheduling (default: UTC)
 | `/mem list` | Show stored memories |
 | `/mem set <key> <value>` | Store a memory |
 | `/mem del <key>` | Delete a memory |
-| `/llm <gemini\|claude>` | Switch LLM backend |
+| `/llm` | Interactive LLM picker (Gemini/Claude/Ollama) |
+| `/llm <gemini\|claude\|ollama>` | Switch LLM backend |
 | `/clear` | Clear conversation history |
 
 Most features work through natural conversation — just talk to Byeol and it will figure out what to do.
@@ -225,7 +231,7 @@ sudo systemctl stop byeol
 byeol/
 ├── main.py           # Telegram bot, command handlers, cron execution
 ├── agent.py          # ReAct agent loop with tool calling
-├── llm.py            # Multi-LLM backend (Gemini + Claude)
+├── llm.py            # Multi-LLM backend (Gemini + Claude + Ollama)
 ├── search.py         # Web search (DuckDuckGo) + page fetcher
 ├── memory.py         # Persistent memory (profile, goals, journal)
 ├── cron.py           # Scheduled task persistence
@@ -233,6 +239,7 @@ byeol/
 ├── media.py          # Media download + storage management
 ├── config.py         # Environment config + path detection
 ├── install.sh        # One-script installer
+├── update.sh         # Quick update (deps + restart, no system packages)
 ├── requirements.txt  # Python dependencies
 └── .env.example      # Configuration template
 ```

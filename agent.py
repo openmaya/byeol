@@ -252,8 +252,7 @@ async def run_agent(user_msg: str, chat_id: int, backend: str = "", ollama_model
             cron_expr = tool_call.get("cron", "")
             action = tool_call.get("action", "")
             try:
-                job = add_job(name, cron_expr, action, chat_id,
-                             backend=backend, ollama_model=ollama_model)
+                job = add_job(name, cron_expr, action, chat_id)
                 if cron_on_add:
                     cron_on_add(job)
                 observations.append(
