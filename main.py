@@ -260,42 +260,42 @@ async def cmd_rss(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Reading feed...")
     backend = _get_backend(context)
     ollama_model = context.user_data.get("ollama_model", "")
-    text = await _format_rss(url, backend, ollama_model)
-    await update.message.reply_text(text, disable_web_page_preview=True)
+    entries = await asyncio.to_thread(fetch_rss, url, 3)
+    if not entries:
+        await update.message.reply_text("피드를 가져올 수 없습니다. URL을 확인해주세요.")
+        return
+    for i, entry in enumerate(entries, 1):
+        line = await _summarize_entry(i, entry, backend, ollama_model)
+        await update.message.reply_text(line, disable_web_page_preview=True)
+
+
+async def _summarize_entry(idx: int, entry: dict, backend: str, ollama_model: str) -> str:
+    """Summarize a single RSS entry with LLM."""
+    try:
+        summary = await ask(
+            f"Summarize in one short Korean sentence (under 80 chars). "
+            f"Add one relevant emoji at the end.\n\n"
+            f"Title: {entry['title']}\n"
+            f"Content: {entry['summary']}",
+            backend=backend,
+            ollama_model=ollama_model,
+        )
+        summary = summary.strip().strip('"').strip()
+        if summary.startswith("[") and "Error]" in summary:
+            return f"{idx}. {entry['title']} 👉 {entry['link']}"
+        return f"{idx}. {entry['title']} – {summary} 👉 {entry['link']}"
+    except Exception:
+        return f"{idx}. {entry['title']} 👉 {entry['link']}"
 
 
 async def _format_rss(url: str, backend: str, ollama_model: str, n: int = 3) -> str:
-    """Fetch RSS feed, summarize each entry with LLM in parallel."""
+    """Fetch RSS and format all entries (used by cron)."""
     entries = await asyncio.to_thread(fetch_rss, url, n)
     if not entries:
         return "피드를 가져올 수 없습니다. URL을 확인해주세요."
-
-    async def _summarize(entry: dict) -> str:
-        try:
-            summary = await ask(
-                f"Summarize in one short Korean sentence (under 80 chars). "
-                f"Add one relevant emoji at the end.\n\n"
-                f"Title: {entry['title']}\n"
-                f"Content: {entry['summary']}",
-                backend=backend,
-                ollama_model=ollama_model,
-            )
-            summary = summary.strip().strip('"').strip()
-            if summary.startswith("[") and "Error]" in summary:
-                return ""
-            return summary
-        except Exception:
-            return ""
-
-    summaries = await asyncio.gather(*[_summarize(e) for e in entries])
-
     lines = []
-    for i, (entry, summary) in enumerate(zip(entries, summaries), 1):
-        if summary:
-            lines.append(f"{i}. {entry['title']} – {summary} 👉 {entry['link']}")
-        else:
-            lines.append(f"{i}. {entry['title']} 👉 {entry['link']}")
-
+    for i, entry in enumerate(entries, 1):
+        lines.append(await _summarize_entry(i, entry, backend, ollama_model))
     return "\n\n".join(lines)
 
 
