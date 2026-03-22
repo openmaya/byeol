@@ -82,6 +82,12 @@ Tools:
   The action will be executed automatically by YOU at the scheduled time.
   Example: cron "0 8 * * *" = every day at 8am.
   For repeating intervals use: "*/5 * * * *" = every 5 minutes.
+  Action prefixes:
+  - "say:message" = send message directly (no AI processing)
+  - "search:query" = search the web
+  - "rss:https://feed-url" = fetch RSS feed and summarize top 3 articles
+  - anything else = processed by AI agent
+  Example: {"tool": "cron_add", "name": "geeknews", "cron": "0 8 * * *", "action": "rss:https://hnrss.org/frontpage"}
   IMPORTANT: This is YOUR internal scheduler, not Linux crontab. Never tell the user to
   check crontab or run crontab commands. You manage everything internally.
 - cron_remove: Remove a scheduled task by name from YOUR internal scheduler.
