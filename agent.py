@@ -173,8 +173,15 @@ async def run_agent(user_msg: str, chat_id: int, backend: str = "", ollama_model
 
         tool_call = _parse_tool_call(response)
 
-        # If LLM didn't return valid JSON, retry once with a nudge
+        # If LLM didn't return valid JSON
         if not tool_call:
+            # If this is step 0 and response looks like a real answer
+            # (not a failed tool call), use it directly — small models
+            # often skip JSON format but give good answers
+            if step == 0 and len(response.strip()) > 20 and not response.strip().startswith("{"):
+                logger.info("Agent: using non-JSON response as final answer")
+                return _clean_response(response)
+
             retry_prompt = (
                 f"{prompt}\n\n"
                 "SYSTEM: Your previous response was not valid JSON. "
