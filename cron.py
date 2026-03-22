@@ -18,7 +18,8 @@ def save_jobs(jobs: list[dict]):
         json.dump(jobs, f, ensure_ascii=False, indent=2)
 
 
-def add_job(name: str, cron_expr: str, action: str, chat_id: int) -> dict:
+def add_job(name: str, cron_expr: str, action: str, chat_id: int,
+            backend: str = "", ollama_model: str = "") -> dict:
     """Add a cron job. cron_expr format: 'minute hour day month day_of_week'"""
     cron_expr = cron_expr.strip().strip("'\"")
     parts = cron_expr.split()
@@ -30,6 +31,8 @@ def add_job(name: str, cron_expr: str, action: str, chat_id: int) -> dict:
         "cron": cron_expr,
         "action": action,
         "chat_id": chat_id,
+        "backend": backend,
+        "ollama_model": ollama_model,
     }
     jobs = load_jobs()
     jobs = [j for j in jobs if j["name"] != name]
