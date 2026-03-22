@@ -1,5 +1,7 @@
+import re
 import time as _time
 import logging
+import feedparser
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
@@ -96,3 +98,27 @@ def fetch_page(url: str, max_chars: int = 5000) -> str:
         return f"[Error loading page: {e}]"
     finally:
         driver.quit()
+
+
+def _strip_html(text: str) -> str:
+    """Remove HTML tags and collapse whitespace."""
+    text = re.sub(r"<[^>]+>", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def fetch_rss(url: str, n: int = 3) -> list[dict]:
+    """Parse RSS/Atom feed and return top n entries with title, link, summary."""
+    try:
+        feed = feedparser.parse(url)
+        entries = []
+        for entry in feed.entries[:n]:
+            summary = _strip_html(entry.get("summary", "") or entry.get("description", ""))
+            entries.append({
+                "title": entry.get("title", ""),
+                "link": entry.get("link", ""),
+                "summary": summary[:500],
+            })
+        return entries
+    except Exception as e:
+        logger.warning(f"RSS fetch failed for {url}: {e}")
+        return []

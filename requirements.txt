@@ -5,3 +5,4 @@ selenium==4.27.1
 python-dotenv==1.0.1
 yt-dlp>=2024.12.0
 aiohttp>=3.9.0
+feedparser>=6.0.0

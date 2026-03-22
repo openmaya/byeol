@@ -19,7 +19,7 @@ from telegram.ext import (
     ContextTypes,
 )
 from llm import ask, list_ollama_models
-from search import web_search, fetch_page
+from search import web_search, fetch_page, fetch_rss
 from memory import memory
 from agent import run_agent
 from cron import add_job, remove_job, list_jobs, load_jobs, _parse_cron
@@ -59,6 +59,10 @@ async def cron_execute(context: ContextTypes.DEFAULT_TYPE):
         text = f"[Scheduled: {job_data['name']}]\n\nLLM이 설정되지 않았습니다. /llm 으로 설정해주세요."
     elif job_data["action"].startswith("say:"):
         text = job_data["action"][4:].strip()
+    elif job_data["action"].startswith("rss:"):
+        rss_url = job_data["action"][4:].strip()
+        rss_text = await _format_rss(rss_url, backend, ollama_model)
+        text = f"[Scheduled: {job_data['name']}]\n\n{rss_text}"
     elif job_data["action"].startswith("search:"):
         query = job_data["action"][7:]
         results = await asyncio.to_thread(web_search, query)
@@ -205,6 +209,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/cron rm <name> | /cron list\n"
         "/mem list | /mem set <k> <v> | /mem del <k>\n"
         "/clear - Clear chat history\n"
+        "/rss <feed_url> - RSS feed summary\n"
         "/llm <gemini|claude|ollama> - Switch LLM\n"
     )
 
@@ -244,6 +249,42 @@ async def cmd_read(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ollama_model=context.user_data.get("ollama_model", ""),
     )
     await update.message.reply_text(summary)
+
+
+@authorized
+async def cmd_rss(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    url = context.args[0] if context.args else ""
+    if not url:
+        await update.message.reply_text("Usage: /rss <feed_url>")
+        return
+    await update.message.reply_text("Reading feed...")
+    backend = _get_backend(context)
+    ollama_model = context.user_data.get("ollama_model", "")
+    text = await _format_rss(url, backend, ollama_model)
+    await update.message.reply_text(text, disable_web_page_preview=True)
+
+
+async def _format_rss(url: str, backend: str, ollama_model: str, n: int = 3) -> str:
+    """Fetch RSS feed, summarize each entry with LLM, return formatted text."""
+    entries = await asyncio.to_thread(fetch_rss, url, n)
+    if not entries:
+        return "피드를 가져올 수 없습니다. URL을 확인해주세요."
+
+    lines = []
+    for i, entry in enumerate(entries, 1):
+        summary = await ask(
+            f"Summarize this article in one short Korean sentence (under 80 chars). "
+            f"Add one relevant emoji at the end.\n\n"
+            f"Title: {entry['title']}\n"
+            f"Content: {entry['summary']}",
+            backend=backend,
+            ollama_model=ollama_model,
+        )
+        # Clean up LLM response — remove quotes, extra whitespace
+        summary = summary.strip().strip('"').strip()
+        lines.append(f"{i}. {entry['title']} – {summary} 👉 {entry['link']}")
+
+    return "\n\n".join(lines)
 
 
 @authorized
@@ -501,6 +542,7 @@ def main():
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("search", cmd_search))
     app.add_handler(CommandHandler("read", cmd_read))
+    app.add_handler(CommandHandler("rss", cmd_rss))
     app.add_handler(CommandHandler("cron", cmd_cron))
     app.add_handler(CommandHandler("mem", cmd_mem))
     app.add_handler(CommandHandler("goals", cmd_goals))
