@@ -280,7 +280,9 @@ async def _summarize_entry(idx: int, entry: dict, backend: str, ollama_model: st
     """Summarize a single RSS entry with LLM."""
     try:
         summary = await ask(
-            f"Summarize in one short Korean sentence (under 80 chars). "
+            f"You are summarizing an RSS article. The title is already shown to the user, "
+            f"so DO NOT repeat it. Instead, explain WHY this matters or WHAT the key detail is "
+            f"that the title doesn't tell you. One short Korean sentence (under 80 chars). "
             f"Add one relevant emoji at the end.\n\n"
             f"Title: {entry['title']}\n"
             f"Content: {entry['summary']}",
