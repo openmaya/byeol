@@ -2,6 +2,8 @@ import re
 import time as _time
 import logging
 import feedparser
+import requests
+from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
@@ -9,6 +11,16 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from config import CHROMIUM_PATH, CHROMEDRIVER_PATH
+
+_HTTP_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/145.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "ko-KR,ko;q=0.9,en;q=0.8",
+}
 
 logger = logging.getLogger(__name__)
 
@@ -65,39 +77,41 @@ def web_search(query: str, max_results: int = 5) -> list[dict]:
 
 
 def fetch_page(url: str, max_chars: int = 5000) -> str:
-    driver = _create_driver()
+    if len(url) > 500:
+        return "[Error: URL too long. Use a shorter, cleaner URL.]"
     try:
-        if len(url) > 500:
-            return "[Error: URL too long. Use a shorter, cleaner URL.]"
-
-        driver.get(url)
-        # Wait for body to appear
-        WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.TAG_NAME, "body"))
-        )
-        # Extra wait for JS-heavy SPAs to render content
-        _time.sleep(3)
-
-        # Try to get meaningful text
-        text = driver.find_element(By.TAG_NAME, "body").text
-
-        # If body text is too short, the page is likely JS-rendered
-        # Try waiting longer and retry
-        if len(text.strip()) < 100:
-            _time.sleep(5)
-            text = driver.find_element(By.TAG_NAME, "body").text
-
-        # Still empty? Return page title + whatever we have
+        resp = requests.get(url, headers=_HTTP_HEADERS, timeout=15)
+        resp.raise_for_status()
+        soup = BeautifulSoup(resp.text, "html.parser")
+        # Remove non-content elements
+        for tag in soup(["script", "style", "nav", "header", "footer", "aside", "iframe"]):
+            tag.decompose()
+        text = soup.get_text(separator="\n", strip=True)
+        # Collapse excessive blank lines
+        text = re.sub(r"\n{3,}", "\n\n", text)
         if len(text.strip()) < 50:
-            title = driver.title or ""
-            return f"[Page title: {title}]\n[Content could not be fully loaded - JS-heavy site]\n{text}"
-
+            title = soup.title.string if soup.title else ""
+            return f"[Page title: {title}]\n[Content could not be extracted]"
         return text[:max_chars]
     except Exception as e:
         logger.warning(f"Fetch failed for {url}: {e}")
         return f"[Error loading page: {e}]"
-    finally:
-        driver.quit()
+
+
+def fetch_exchange_rate(base: str = "USD", target: str = "KRW") -> dict:
+    """Fetch exchange rate from frankfurter.dev (free, no key required)."""
+    try:
+        resp = requests.get(
+            f"https://api.frankfurter.dev/v1/latest?base={base}&symbols={target}",
+            timeout=10,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        rate = data["rates"][target]
+        return {"ok": True, "base": base, "target": target, "rate": rate, "date": data.get("date", "")}
+    except Exception as e:
+        logger.warning(f"Exchange rate fetch failed: {e}")
+        return {"ok": False, "error": str(e)}
 
 
 def _strip_html(text: str) -> str:

@@ -6,6 +6,9 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 echo "Updating Byeol..."
 
+# Pull latest code
+git -C "$SCRIPT_DIR" pull
+
 # Copy source files
 if [ "$SCRIPT_DIR" != "$INSTALL_DIR" ]; then
     for f in main.py config.py llm.py search.py memory.py agent.py cron.py fileops.py media.py requirements.txt; do

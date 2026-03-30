@@ -2,7 +2,7 @@ import asyncio
 import json
 import logging
 from llm import ask
-from search import web_search, fetch_page
+from search import web_search, fetch_page, fetch_exchange_rate
 from memory import memory
 from cron import add_job, remove_job, list_jobs
 from fileops import list_dir, read_file, write_file, move_file, make_dir
@@ -65,6 +65,7 @@ Tools:
 {"tool": "file_write", "path": "subdir/file.txt", "content": "text to write"}
 {"tool": "file_move", "src": "old/path.txt", "dst": "new/path.txt"}
 {"tool": "file_mkdir", "path": "new_folder"}
+{"tool": "exchange_rate", "base": "USD", "target": "KRW"}
 {"tool": "yt_download", "url": "https://youtube.com/watch?v=... or https://instagram.com/reel/..."}
 {"tool": "storage_status"}
 {"tool": "media_list"}
@@ -99,6 +100,9 @@ Tools:
 - file_move: Move or rename a file/folder. Both paths relative to FILE_ROOT.
 - file_mkdir: Create a new directory. Path is relative to FILE_ROOT.
 - NOTE: File deletion is NOT available. All paths are restricted to FILE_ROOT.
+- exchange_rate: Get real-time exchange rate. base/target are ISO 4217 currency codes (e.g., USD, KRW, EUR, JPY).
+  For dollar-won rate, use base="USD" target="KRW".
+  ALWAYS use this tool when the user asks about exchange rates. NEVER guess exchange rates.
 - yt_download: Download a YouTube or Instagram video to USB storage. Auto-cleans old files if disk > 70%.
   USE THIS whenever the user sends a YouTube or Instagram URL or asks to download a video.
   Supports youtube.com, youtu.be, and instagram.com URLs.
@@ -109,7 +113,10 @@ Tools:
 ## CRITICAL RULES
 - EVERY response MUST be a single JSON object. Nothing else.
 - Do NOT write any text outside of JSON.
-- NEVER say you can't do something. You have tools for search, read, cron, memory, goals, journal, YouTube download.
+- NEVER say you can't do something. You have tools for search, read, cron, memory, goals, journal, YouTube download, exchange rate.
+- NEVER fabricate data. If a tool returns an error or no data, say "정보를 가져오지 못했습니다" instead of making up numbers.
+  Especially for exchange rates, stock prices, weather, or any real-time data — ONLY report numbers returned by tools.
+- For exchange rates, ALWAYS use the "exchange_rate" tool. Do NOT guess or use training data for rates.
 - If the user sends a YouTube or Instagram URL (youtube.com, youtu.be, instagram.com), ALWAYS use "yt_download" tool.
 - If the user asks to search or read a webpage, use "search" or "read" tool. You CAN do it.
 - If the user asks about scheduling/cron/alarms/reminders, use "cron_add". You CAN do it.
@@ -310,6 +317,18 @@ async def run_agent(user_msg: str, chat_id: int, backend: str = "", ollama_model
             path = tool_call.get("path", "")
             result = make_dir(path)
             observations.append(f"Tool call: file_mkdir({path})\n{result}")
+
+        elif tool == "exchange_rate":
+            base = tool_call.get("base", "USD")
+            target = tool_call.get("target", "KRW")
+            result = await asyncio.to_thread(fetch_exchange_rate, base, target)
+            if result["ok"]:
+                observations.append(
+                    f"Tool call: exchange_rate({base}/{target})\n"
+                    f"Rate: 1 {base} = {result['rate']} {target} (date: {result['date']})"
+                )
+            else:
+                observations.append(f"Tool call: exchange_rate\nError: {result['error']}")
 
         elif tool == "yt_download":
             url = tool_call.get("url", "")

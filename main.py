@@ -19,7 +19,7 @@ from telegram.ext import (
     ContextTypes,
 )
 from llm import ask, list_ollama_models
-from search import web_search, fetch_page, fetch_rss
+from search import web_search, fetch_page, fetch_rss, fetch_exchange_rate
 from memory import memory
 from agent import run_agent
 from cron import add_job, remove_job, list_jobs, load_jobs, _parse_cron
@@ -209,6 +209,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Commands:\n"
         "/search <query> - Web search\n"
         "/read <url> - Read & summarize page\n"
+        "/exchange [base] [target] - Exchange rate (default: USD KRW)\n"
         "/goals - Show active goals\n"
         "/journal - Show recent journal\n"
         "/profile - Show what I know about you\n"
@@ -274,6 +275,28 @@ async def cmd_rss(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for i, entry in enumerate(entries, 1):
         line = await _summarize_entry(i, entry, backend, ollama_model)
         await update.message.reply_text(line, disable_web_page_preview=True)
+
+
+@authorized
+async def cmd_exchange(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    args = context.args or []
+    base = args[0].upper() if len(args) >= 1 else "USD"
+    target = args[1].upper() if len(args) >= 2 else "KRW"
+    result = await asyncio.to_thread(fetch_exchange_rate, base, target)
+    if result["ok"]:
+        rate = result["rate"]
+        # Format with comma separator
+        if isinstance(rate, float) and rate >= 100:
+            rate_str = f"{rate:,.2f}"
+        else:
+            rate_str = str(rate)
+        await update.message.reply_text(
+            f"💱 1 {base} = {rate_str} {target}\n"
+            f"📅 {result['date']}\n"
+            f"🔗 https://www.investing.com/currencies/{base.lower()}-{target.lower()}"
+        )
+    else:
+        await update.message.reply_text(f"환율 조회 실패: {result['error']}")
 
 
 async def _summarize_entry(idx: int, entry: dict, backend: str, ollama_model: str) -> str:
@@ -554,6 +577,7 @@ def main():
     app.add_handler(CommandHandler("search", cmd_search))
     app.add_handler(CommandHandler("read", cmd_read))
     app.add_handler(CommandHandler("rss", cmd_rss))
+    app.add_handler(CommandHandler("exchange", cmd_exchange))
     app.add_handler(CommandHandler("cron", cmd_cron))
     app.add_handler(CommandHandler("mem", cmd_mem))
     app.add_handler(CommandHandler("goals", cmd_goals))
