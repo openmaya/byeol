@@ -70,6 +70,24 @@ async def cron_execute(context: ContextTypes.DEFAULT_TYPE):
                 line = await _summarize_entry(i, entry, backend, ollama_model)
                 await context.bot.send_message(chat_id=chat_id, text=line, disable_web_page_preview=True)
             return
+    elif job_data["action"].startswith("exchange:"):
+        # Format: "exchange:USD/KRW" or "exchange:" (default USD/KRW)
+        pair = job_data["action"][9:].strip()
+        parts = pair.split("/") if "/" in pair else pair.split()
+        base = parts[0].upper() if len(parts) >= 1 and parts[0] else "USD"
+        target = parts[1].upper() if len(parts) >= 2 else "KRW"
+        result = await asyncio.to_thread(fetch_exchange_rate, base, target)
+        if result["ok"]:
+            rate = result["rate"]
+            rate_str = f"{rate:,.2f}" if isinstance(rate, float) and rate >= 100 else str(rate)
+            text = (
+                f"[Scheduled: {job_data['name']}]\n\n"
+                f"💱 1 {base} = {rate_str} {target}\n"
+                f"📅 {result['date']}\n"
+                f"🔗 https://www.investing.com/currencies/{base.lower()}-{target.lower()}"
+            )
+        else:
+            text = f"[Scheduled: {job_data['name']}]\n\n환율 조회 실패: {result['error']}"
     elif job_data["action"].startswith("search:"):
         query = job_data["action"][7:]
         results = await asyncio.to_thread(web_search, query)

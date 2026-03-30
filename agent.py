@@ -87,6 +87,7 @@ Tools:
   - "say:message" = send message directly (no AI processing)
   - "search:query" = search the web
   - "rss:https://feed-url" = fetch RSS feed and summarize top 3 articles
+  - "exchange:USD/KRW" = fetch real-time exchange rate (default: USD/KRW)
   - anything else = processed by AI agent
   Example: {"tool": "cron_add", "name": "geeknews", "cron": "0 8 * * *", "action": "rss:https://hnrss.org/frontpage"}
   IMPORTANT: This is YOUR internal scheduler, not Linux crontab. Never tell the user to
