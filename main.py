@@ -347,7 +347,8 @@ async def cmd_cron(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Usage:\n"
             "/cron add <name> <min> <hour> <day> <month> <dow> <action>\n"
             "/cron rm <name>\n"
-            "/cron list"
+            "/cron list\n"
+            "/cron refresh"
         )
         return
 
@@ -369,6 +370,11 @@ async def cmd_cron(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"Removed: {args[1]}")
         else:
             await update.message.reply_text(f"Not found: {args[1]}")
+
+    elif sub == "refresh":
+        schedule_all_jobs(context.application.job_queue)
+        jobs = list_jobs()
+        await update.message.reply_text(f"Reloaded {len(jobs)} job(s) from file.")
 
     elif sub == "add" and len(args) >= 8:
         name = args[1]
