@@ -318,24 +318,26 @@ async def cmd_exchange(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def _summarize_entry(idx: int, entry: dict, backend: str, ollama_model: str) -> str:
-    """Summarize a single RSS entry with LLM."""
+    """Summarize a single RSS entry with LLM by fetching the actual article."""
+    fallback = f"{idx}. {entry['title']} 👉 {entry['link']}"
     try:
+        page_text = await asyncio.to_thread(fetch_page, entry["link"], 2000)
+        if page_text.startswith("[Error") or page_text.startswith("[Page title:"):
+            return fallback
         summary = await ask(
-            f"You are summarizing an RSS article. The title is already shown to the user, "
-            f"so DO NOT repeat it. Instead, explain WHY this matters or WHAT the key detail is "
-            f"that the title doesn't tell you. One short Korean sentence (under 80 chars). "
-            f"Add one relevant emoji at the end.\n\n"
-            f"Title: {entry['title']}\n"
-            f"Content: {entry['summary']}",
+            f"아래 기사 본문에서 제목만으로는 알 수 없는 핵심 정보를 한국어 한 문장(80자 이내)으로 뽑아줘. "
+            f"제목에 이미 나온 내용은 절대 반복하지 마. 이모지 1개를 끝에 붙여.\n\n"
+            f"제목: {entry['title']}\n"
+            f"본문: {page_text}",
             backend=backend,
             ollama_model=ollama_model,
         )
         summary = summary.strip().strip('"').strip()
         if summary.startswith("[") and "Error]" in summary:
-            return f"{idx}. {entry['title']} 👉 {entry['link']}"
+            return fallback
         return f"{idx}. {entry['title']} – {summary} 👉 {entry['link']}"
     except Exception:
-        return f"{idx}. {entry['title']} 👉 {entry['link']}"
+        return fallback
 
 
 
