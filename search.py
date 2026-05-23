@@ -123,7 +123,14 @@ def _strip_html(text: str) -> str:
 def fetch_rss(url: str, n: int = 3) -> list[dict]:
     """Parse RSS/Atom feed and return top n entries with title, link, summary."""
     try:
-        feed = feedparser.parse(url)
+        # Pre-fetch with requests: some sites (e.g. hankyung.com) reject feedparser's default UA with 403.
+        try:
+            resp = requests.get(url, headers=_HTTP_HEADERS, timeout=15)
+            resp.raise_for_status()
+            feed = feedparser.parse(resp.content)
+        except Exception as fetch_err:
+            logger.warning(f"RSS prefetch failed for {url}, falling back to feedparser: {fetch_err}")
+            feed = feedparser.parse(url)
         entries = []
         for entry in feed.entries[:n]:
             summary = _strip_html(entry.get("summary", "") or entry.get("description", ""))
